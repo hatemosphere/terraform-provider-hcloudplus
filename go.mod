@@ -6,8 +6,8 @@ require (
 	github.com/hashicorp/terraform-plugin-docs v0.24.0
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
-	github.com/hatemosphere/hcloud-go-plus v0.0.0-20260411201341-4aada695568a
-	github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20260411201341-4aada695568a
+	github.com/hatemosphere/hcloud-go-plus v0.0.0-20260411201718-ce7305f2cab4
+	github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20260411201718-ce7305f2cab4
 )
 
 require (

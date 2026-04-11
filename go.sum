@@ -106,10 +106,10 @@ github.com/hashicorp/terraform-svchost v0.1.1 h1:EZZimZ1GxdqFRinZ1tpJwVxxt49xc/S
 github.com/hashicorp/terraform-svchost v0.1.1/go.mod h1:mNsjQfZyf/Jhz35v6/0LWcv26+X7JPS+buii2c9/ctc=
 github.com/hashicorp/yamux v0.1.2 h1:XtB8kyFOyHXYVFnwT5C3+Bdo8gArse7j2AQ0DA0Uey8=
 github.com/hashicorp/yamux v0.1.2/go.mod h1:C+zze2n6e/7wshOZep2A70/aQU6QBRWJO/G6FT1wIns=
-github.com/hatemosphere/hcloud-go-plus v0.0.0-20260411201341-4aada695568a h1:m7doYF6bba/XMxsy4j8cHj2JhHr+NRvjpmHeg2yna5w=
-github.com/hatemosphere/hcloud-go-plus v0.0.0-20260411201341-4aada695568a/go.mod h1:N4ZmGrSiLhfCeUbU9ewAabUgWjYa/w7DoPchl7V1BbQ=
-github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20260411201341-4aada695568a h1:Ly2/v/i7exig3I9LOzV3k7LRe2d0DpVEP9pit8i6AVw=
-github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20260411201341-4aada695568a/go.mod h1:N/JtnSGNR2QlEYBVJTLW4jqMPXGuHSBRG9ItEnxoejk=
+github.com/hatemosphere/hcloud-go-plus v0.0.0-20260411201718-ce7305f2cab4 h1:7RdPOP4XrQzOIWLaI+0dmQ/oXx5f1e7V8cxe0EiK+Sc=
+github.com/hatemosphere/hcloud-go-plus v0.0.0-20260411201718-ce7305f2cab4/go.mod h1:N4ZmGrSiLhfCeUbU9ewAabUgWjYa/w7DoPchl7V1BbQ=
+github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20260411201718-ce7305f2cab4 h1:eTqQX4HRsGYNmZLhniZ0Kf0lfmuPKTtRA96j5srHWxw=
+github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20260411201718-ce7305f2cab4/go.mod h1:N/JtnSGNR2QlEYBVJTLW4jqMPXGuHSBRG9ItEnxoejk=
 github.com/huandu/xstrings v1.3.3 h1:/Gcsuc1x8JVbJ9/rlye4xZnVAbEkGauT8lbebqcQws4=
 github.com/huandu/xstrings v1.3.3/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/imdario/mergo v0.3.11/go.mod h1:jmQim1M+e3UYxmgPu/WyfjB3N3VflVyUjjjwH0dnCYA=
