@@ -73,9 +73,18 @@ func (r *projectResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Computed:    true,
 				Description: "The account that owns the project.",
 				Attributes: map[string]schema.Attribute{
-					"id":       schema.Int64Attribute{Computed: true},
-					"email":    schema.StringAttribute{Computed: true},
-					"robot_cn": schema.StringAttribute{Computed: true},
+					"id": schema.Int64Attribute{
+						Computed:    true,
+						Description: "Numeric Hetzner account ID of the project owner.",
+					},
+					"email": schema.StringAttribute{
+						Computed:    true,
+						Description: "Primary email address on the owning Hetzner account.",
+					},
+					"robot_cn": schema.StringAttribute{
+						Computed:    true,
+						Description: "Hetzner Robot client number (e.g. K0247406420) of the owning account.",
+					},
 				},
 			},
 		},

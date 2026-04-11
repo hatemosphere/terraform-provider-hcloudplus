@@ -37,9 +37,9 @@ resource "hcloudplus_project" "example" {
 
 Read-Only:
 
-- `email` (String)
-- `id` (Number)
-- `robot_cn` (String)
+- `email` (String) Primary email address on the owning Hetzner account.
+- `id` (Number) Numeric Hetzner account ID of the project owner.
+- `robot_cn` (String) Hetzner Robot client number (e.g. K0247406420) of the owning account.
 
 ## Import
 
