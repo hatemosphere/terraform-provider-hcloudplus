@@ -4,9 +4,14 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -18,6 +23,135 @@ import (
 	"github.com/hatemosphere/hcloud-go-plus/authbrowser"
 	"github.com/hatemosphere/hcloud-go-plus/hcloudplus"
 )
+
+// fileCachedTokenSource wraps an authbrowser.NewTokenSource with an on-disk
+// cache. Pulumi spawns the provider plugin once per phase (preview, then
+// update), so without caching a single `pulumi up` would run
+// authbrowser.Login twice — ~40s of headless Chromium work each time.
+// This wrapper persists the minted user token to a file on first Login
+// and hands it back from disk on subsequent process starts until it is
+// close to expiry.
+//
+// The file is JSON, mode 0600, and only contains the bearer token plus
+// its absolute expiry. The bearer token is ~account-scope access for
+// ~12h; treat the cache path the same way you'd treat an API key file.
+type fileCachedTokenSource struct {
+	inner     hcloudplus.TokenSource
+	cachePath string
+
+	mu         sync.Mutex
+	memToken   string
+	memExpires time.Time
+}
+
+type cachedTokenFile struct {
+	Token   string    `json:"token"`
+	Expires time.Time `json:"expires"`
+}
+
+// refreshFraction — refresh when less than this much of the original
+// lifetime remains. 20% = we start refreshing with ~2.4h left on a 12h
+// token, which is plenty of slack for a long `pulumi up` to finish using
+// the cached token without rolling it mid-apply.
+const cachedTokenRefreshFraction = 0.2
+
+func (f *fileCachedTokenSource) Token(ctx context.Context) (string, time.Time, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// In-memory fast path (second call within the same process).
+	if f.memToken != "" && time.Until(f.memExpires) > 30*time.Second {
+		return f.memToken, f.memExpires, nil
+	}
+
+	// Disk fast path (fresh subprocess that hasn't minted yet).
+	if f.cachePath != "" {
+		if entry, err := readCachedToken(f.cachePath); err == nil {
+			remaining := time.Until(entry.Expires)
+			if remaining > 30*time.Second && remaining > time.Duration(float64(12*time.Hour)*cachedTokenRefreshFraction) {
+				tflog.Debug(ctx, "using cached user token from disk", map[string]any{
+					"path":           f.cachePath,
+					"expires_in_sec": int64(remaining.Seconds()),
+				})
+				f.memToken = entry.Token
+				f.memExpires = entry.Expires
+				return entry.Token, entry.Expires, nil
+			}
+			tflog.Debug(ctx, "cached user token is too close to expiry, refreshing", map[string]any{
+				"path":           f.cachePath,
+				"expires_in_sec": int64(remaining.Seconds()),
+			})
+		}
+	}
+
+	// Fall through to actual Login.
+	tflog.Info(ctx, "no usable cached token, running authbrowser.Login")
+	token, expires, err := f.inner.Token(ctx)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+
+	f.memToken = token
+	f.memExpires = expires
+
+	// Best-effort persist. A failure to write the cache must not block
+	// the caller — they just pay the cold-login cost next time.
+	if f.cachePath != "" {
+		if err := writeCachedToken(f.cachePath, cachedTokenFile{Token: token, Expires: expires}); err != nil {
+			tflog.Warn(ctx, "failed to persist cached user token; continuing without cache", map[string]any{
+				"path":  f.cachePath,
+				"error": err.Error(),
+			})
+		} else {
+			tflog.Debug(ctx, "persisted cached user token to disk", map[string]any{"path": f.cachePath})
+		}
+	}
+
+	return token, expires, nil
+}
+
+func defaultTokenCachePath() string {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(base, "hcloud-go-plus", "user-token.json")
+}
+
+func readCachedToken(path string) (cachedTokenFile, error) {
+	var out cachedTokenFile
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return out, err
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return out, err
+	}
+	if out.Token == "" || out.Expires.IsZero() {
+		return out, fmt.Errorf("cached token file %q is incomplete", path)
+	}
+	return out, nil
+}
+
+func writeCachedToken(path string, entry cachedTokenFile) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("mkdir cache dir: %w", err)
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("marshal cache: %w", err)
+	}
+	// Write atomically via a temp file next to the target so a crash
+	// during write never leaves a half-written token file.
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return fmt.Errorf("write temp cache: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return fmt.Errorf("rename temp cache: %w", err)
+	}
+	return nil
+}
 
 // Ensure hcloudplusProvider satisfies the provider.Provider interface.
 var _ provider.Provider = (*hcloudplusProvider)(nil)
@@ -145,7 +279,21 @@ func (p *hcloudplusProvider) Configure(ctx context.Context, req provider.Configu
 				return code, nil
 			},
 		}
-		ts := authbrowser.NewTokenSource(creds, authbrowser.WithDebugWriter(sdkLogWriter))
+
+		// Persist the user token to disk so subsequent provider subprocess
+		// starts (Pulumi spawns one per phase: preview then update) reuse
+		// the cached token instead of re-running authbrowser.Login. Path
+		// can be overridden via HCLOUDPLUS_TOKEN_CACHE; set it to an empty
+		// string to disable caching entirely.
+		cachePath := defaultTokenCachePath()
+		if v, ok := os.LookupEnv("HCLOUDPLUS_TOKEN_CACHE"); ok {
+			cachePath = v
+		}
+		inner := authbrowser.NewTokenSource(creds, authbrowser.WithDebugWriter(sdkLogWriter))
+		ts := &fileCachedTokenSource{
+			inner:     inner,
+			cachePath: cachePath,
+		}
 		opts = append(opts, hcloudplus.WithTokenSource(ts))
 
 	default:
