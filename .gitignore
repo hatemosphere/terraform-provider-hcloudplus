@@ -1,0 +1,43 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.*
+/bin/
+/dist/
+/vendor/
+
+# Provider binary locations terraform's dev_overrides + local installs
+# commonly look for.
+/terraform-provider-hcloudplus
+
+# Terraform working state — do NOT commit
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+.terraform.lock.hcl
+
+# GoReleaser / release tooling
+/dist/
+
+# IDE / editor junk
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local env files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# AI
+.claude/
