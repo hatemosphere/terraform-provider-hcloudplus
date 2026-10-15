@@ -53,6 +53,9 @@ The provider launches a headless Chromium internally (via
 user token on Configure. **Only TOTP-based 2FA is supported** — Yubikey-OTP
 accounts cannot be automated. See [hcloud-go-plus 2FA docs](https://github.com/hatemosphere/hcloud-go-plus/blob/main/docs/2fa.md).
 
+Requires an installed Chrome/Chromium on the machine running Terraform
+(nothing is downloaded at runtime); in CI containers bake it into the image.
+
 ```hcl
 provider "hcloudplus" {
   # all optional here — env vars do the same job
