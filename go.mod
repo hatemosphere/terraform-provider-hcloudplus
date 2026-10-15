@@ -1,13 +1,13 @@
 module github.com/hatemosphere/terraform-provider-hcloudplus
 
-go 1.26
+go 1.27
 
 require (
 	github.com/hashicorp/terraform-plugin-docs v0.24.0
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
-	github.com/hatemosphere/hcloud-go-plus v0.0.0-20260411201718-ce7305f2cab4
-	github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20260411201718-ce7305f2cab4
+	github.com/hatemosphere/hcloud-go-plus v0.0.0-20261015074409-471967e96442
+	github.com/hatemosphere/hcloud-go-plus/authbrowser v0.0.0-20261015074409-471967e96442
 )
 
 require (
@@ -21,9 +21,11 @@ require (
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.9.1 // indirect
+	github.com/chromedp/cdproto v0.158.0 // indirect
+	github.com/chromedp/chromedp v0.21.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/go-rod/rod v0.116.2 // indirect
+	github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/cli v1.1.7 // indirect
@@ -57,11 +59,6 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	github.com/ysmood/fetchup v0.2.3 // indirect
-	github.com/ysmood/goob v0.4.0 // indirect
-	github.com/ysmood/got v0.40.0 // indirect
-	github.com/ysmood/gson v0.7.3 // indirect
-	github.com/ysmood/leakless v0.9.0 // indirect
 	github.com/yuin/goldmark v1.7.7 // indirect
 	github.com/yuin/goldmark-meta v1.1.0 // indirect
 	github.com/zclconf/go-cty v1.17.0 // indirect
