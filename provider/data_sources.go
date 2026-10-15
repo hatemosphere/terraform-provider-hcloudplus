@@ -294,8 +294,8 @@ func (d *activitiesDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 			},
 			"project_ids": schema.ListAttribute{
 				Optional:    true,
-				ElementType: types.Int64Type,
-				Description: "Filter to specific project IDs.",
+				ElementType: types.StringType,
+				Description: "Filter to specific project IDs, as strings (e.g. `hcloudplus_project.x.id`).",
 			},
 			"types": schema.ListAttribute{
 				Optional:    true,
@@ -355,9 +355,16 @@ func (d *activitiesDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		opts.IncludeUserActivities = cfg.IncludeUserActivities.ValueBool()
 	}
 	if !cfg.ProjectIds.IsNull() {
-		var ids []int64
-		resp.Diagnostics.Append(cfg.ProjectIds.ElementsAs(ctx, &ids, false)...)
-		opts.ProjectIDs = ids
+		var raw []types.String
+		resp.Diagnostics.Append(cfg.ProjectIds.ElementsAs(ctx, &raw, false)...)
+		for _, v := range raw {
+			id, err := parseProjectID(v)
+			if err != nil {
+				resp.Diagnostics.AddError("Invalid project_ids", err.Error())
+				return
+			}
+			opts.ProjectIDs = append(opts.ProjectIDs, id)
+		}
 	}
 	if !cfg.Types.IsNull() {
 		var tt []string

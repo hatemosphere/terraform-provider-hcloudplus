@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = (*projectInvitationResource)(nil)
-	_ resource.ResourceWithConfigure = (*projectInvitationResource)(nil)
+	_ resource.Resource                 = (*projectInvitationResource)(nil)
+	_ resource.ResourceWithConfigure    = (*projectInvitationResource)(nil)
+	_ resource.ResourceWithUpgradeState = (*projectInvitationResource)(nil)
 )
 
 // NewProjectInvitationResource is the constructor registered with the provider.
@@ -31,7 +32,7 @@ type projectInvitationResource struct {
 
 type projectInvitationResourceModel struct {
 	ID               types.String `tfsdk:"id"`
-	ProjectID        types.Int64  `tfsdk:"project_id"`
+	ProjectID        types.String `tfsdk:"project_id"`
 	Email            types.String `tfsdk:"email"`
 	Role             types.String `tfsdk:"role"`
 	Created          types.String `tfsdk:"created"`
@@ -46,6 +47,7 @@ func (r *projectInvitationResource) Metadata(_ context.Context, req resource.Met
 
 func (r *projectInvitationResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Version:     1,
 		Description: "A pending project membership invitation. Invitations are immutable: changing email or role forces replacement (Hetzner does not expose an update endpoint). Accepted invitations continue to exist as project members, which this resource does not manage.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -55,9 +57,9 @@ func (r *projectInvitationResource) Schema(_ context.Context, _ resource.SchemaR
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"project_id": schema.Int64Attribute{
+			"project_id": schema.StringAttribute{
 				Required:    true,
-				Description: "ID of the project to invite the user into.",
+				Description: "ID of the project to invite the user into, as a string (e.g. `hcloudplus_project.x.id`).",
 			},
 			"email": schema.StringAttribute{
 				Required:    true,
@@ -110,7 +112,13 @@ func (r *projectInvitationResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
-	inv, err := r.client.ProjectInvitation.Create(ctx, plan.ProjectID.ValueInt64(), hcloudplus.ProjectInvitationCreateOpts{
+	projectID, err := parseProjectID(plan.ProjectID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid project_id", err.Error())
+		return
+	}
+
+	inv, err := r.client.ProjectInvitation.Create(ctx, projectID, hcloudplus.ProjectInvitationCreateOpts{
 		Email: plan.Email.ValueString(),
 		Role:  plan.Role.ValueString(),
 	})
@@ -144,8 +152,13 @@ func (r *projectInvitationResource) Read(ctx context.Context, req resource.ReadR
 		resp.Diagnostics.AddError("Invalid invitation ID", err.Error())
 		return
 	}
+	projectID, err := parseProjectID(state.ProjectID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid project_id", err.Error())
+		return
+	}
 
-	invs, err := r.client.ProjectInvitation.All(ctx, state.ProjectID.ValueInt64())
+	invs, err := r.client.ProjectInvitation.All(ctx, projectID)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to list invitations", err.Error())
 		return
@@ -208,8 +221,13 @@ func (r *projectInvitationResource) Delete(ctx context.Context, req resource.Del
 		resp.Diagnostics.AddError("Invalid invitation ID", err.Error())
 		return
 	}
+	projectID, err := parseProjectID(state.ProjectID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid project_id", err.Error())
+		return
+	}
 
-	if err := r.client.ProjectInvitation.Delete(ctx, state.ProjectID.ValueInt64(), id); err != nil &&
+	if err := r.client.ProjectInvitation.Delete(ctx, projectID, id); err != nil &&
 		!hcloudplus.IsError(err, hcloudplus.ErrorCodeNotFound) {
 		resp.Diagnostics.AddError("Failed to delete project invitation", err.Error())
 	}
@@ -226,5 +244,9 @@ func (r *projectInvitationResource) ImportState(ctx context.Context, req resourc
 		return
 	}
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), int64ToString(invitationID))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), projectID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), int64ToString(projectID))...)
+}
+
+func (r *projectInvitationResource) UpgradeState(context.Context) map[int64]resource.StateUpgrader {
+	return projectIDStringUpgraders()
 }

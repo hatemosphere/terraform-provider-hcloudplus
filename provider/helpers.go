@@ -3,13 +3,17 @@ package provider
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/hatemosphere/hcloud-go-plus/hcloudplus"
@@ -97,4 +101,43 @@ func projectFromAPI(p *hcloudplus.Project) projectResourceModel {
 
 func int64ToString(n int64) string {
 	return strconv.FormatInt(n, 10)
+}
+
+// parseProjectID converts a project_id attribute to the numeric ID the API
+// takes. project_id is a string so it can be wired straight from
+// hcloudplus_project.id, which is a string like every Terraform ID; Pulumi
+// has no implicit string -> number conversion.
+func parseProjectID(v types.String) (int64, error) {
+	id, err := strconv.ParseInt(v.ValueString(), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("project_id must be a numeric project ID, got %q", v.ValueString())
+	}
+	return id, nil
+}
+
+// projectIDStringUpgraders upgrades schema v0 state, where project_id was
+// a number, to v1 where it is a string.
+func projectIDStringUpgraders() map[int64]resource.StateUpgrader {
+	return map[int64]resource.StateUpgrader{
+		0: {
+			StateUpgrader: func(_ context.Context, req resource.UpgradeStateRequest, resp *resource.UpgradeStateResponse) {
+				dec := json.NewDecoder(bytes.NewReader(req.RawState.JSON))
+				dec.UseNumber()
+				var raw map[string]any
+				if err := dec.Decode(&raw); err != nil {
+					resp.Diagnostics.AddError("Unable to upgrade state", err.Error())
+					return
+				}
+				if n, ok := raw["project_id"].(json.Number); ok {
+					raw["project_id"] = n.String()
+				}
+				b, err := json.Marshal(raw)
+				if err != nil {
+					resp.Diagnostics.AddError("Unable to upgrade state", err.Error())
+					return
+				}
+				resp.DynamicValue = &tfprotov6.DynamicValue{JSON: b}
+			},
+		},
+	}
 }

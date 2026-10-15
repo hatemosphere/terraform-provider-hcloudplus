@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = (*projectTokenResource)(nil)
-	_ resource.ResourceWithConfigure = (*projectTokenResource)(nil)
+	_ resource.Resource                 = (*projectTokenResource)(nil)
+	_ resource.ResourceWithConfigure    = (*projectTokenResource)(nil)
+	_ resource.ResourceWithUpgradeState = (*projectTokenResource)(nil)
 )
 
 // NewProjectTokenResource is the constructor registered with the provider.
@@ -34,7 +35,7 @@ type projectTokenResource struct {
 // populated at Create time; the API never returns it again.
 type projectTokenResourceModel struct {
 	ID          types.String `tfsdk:"id"`
-	ProjectID   types.Int64  `tfsdk:"project_id"`
+	ProjectID   types.String `tfsdk:"project_id"`
 	Description types.String `tfsdk:"description"`
 	Readonly    types.Bool   `tfsdk:"readonly"`
 	Prefix      types.String `tfsdk:"prefix"`
@@ -47,6 +48,7 @@ func (r *projectTokenResource) Metadata(_ context.Context, req resource.Metadata
 
 func (r *projectTokenResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Version: 1,
 		Description: "A project-scoped API token for use against the public Hetzner Cloud API. " +
 			"The `secret` output is returned once at creation time; store it in Pulumi/Terraform state " +
 			"(encrypted) and pass it to hcloud-go / terraform-provider-hcloud as needed. " +
@@ -59,9 +61,9 @@ func (r *projectTokenResource) Schema(_ context.Context, _ resource.SchemaReques
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"project_id": schema.Int64Attribute{
+			"project_id": schema.StringAttribute{
 				Required:    true,
-				Description: "ID of the project this token belongs to.",
+				Description: "ID of the project this token belongs to, as a string (e.g. `hcloudplus_project.x.id`).",
 			},
 			"description": schema.StringAttribute{
 				Required:    true,
@@ -112,7 +114,13 @@ func (r *projectTokenResource) Create(ctx context.Context, req resource.CreateRe
 		readonly = plan.Readonly.ValueBool()
 	}
 
-	result, err := r.client.ProjectToken.Create(ctx, plan.ProjectID.ValueInt64(), hcloudplus.ProjectTokenCreateOpts{
+	projectID, err := parseProjectID(plan.ProjectID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid project_id", err.Error())
+		return
+	}
+
+	result, err := r.client.ProjectToken.Create(ctx, projectID, hcloudplus.ProjectTokenCreateOpts{
 		Description: plan.Description.ValueString(),
 		Readonly:    readonly,
 	})
@@ -144,10 +152,15 @@ func (r *projectTokenResource) Read(ctx context.Context, req resource.ReadReques
 		resp.Diagnostics.AddError("Invalid token ID", err.Error())
 		return
 	}
+	projectID, err := parseProjectID(state.ProjectID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid project_id", err.Error())
+		return
+	}
 
 	// Scan the project's tokens for one matching the stored ID. The private
 	// API has no direct GET /_tokens/:id endpoint.
-	tokens, err := r.client.ProjectToken.All(ctx, state.ProjectID.ValueInt64())
+	tokens, err := r.client.ProjectToken.All(ctx, projectID)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to list project tokens", err.Error())
 		return
@@ -194,8 +207,13 @@ func (r *projectTokenResource) Delete(ctx context.Context, req resource.DeleteRe
 		resp.Diagnostics.AddError("Invalid token ID", err.Error())
 		return
 	}
+	projectID, err := parseProjectID(state.ProjectID)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid project_id", err.Error())
+		return
+	}
 
-	if err := r.client.ProjectToken.Delete(ctx, state.ProjectID.ValueInt64(), id); err != nil &&
+	if err := r.client.ProjectToken.Delete(ctx, projectID, id); err != nil &&
 		!hcloudplus.IsError(err, hcloudplus.ErrorCodeNotFound) {
 		resp.Diagnostics.AddError("Failed to delete project token", err.Error())
 	}
@@ -213,5 +231,9 @@ func (r *projectTokenResource) ImportState(ctx context.Context, req resource.Imp
 		return
 	}
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), int64ToString(tokenID))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), projectID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), int64ToString(projectID))...)
+}
+
+func (r *projectTokenResource) UpgradeState(context.Context) map[int64]resource.StateUpgrader {
+	return projectIDStringUpgraders()
 }

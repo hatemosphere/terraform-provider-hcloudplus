@@ -33,7 +33,7 @@ output "recent_token_events" {
 - `created_before` (String) RFC 3339 upper time bound. Window capped at 31 days.
 - `include_user_activities` (Boolean) Include account-level events (logins, etc). At least one of include_user_activities or project_ids is required.
 - `per_page` (Number) Page size (default 25, max 500).
-- `project_ids` (List of Number) Filter to specific project IDs.
+- `project_ids` (List of String) Filter to specific project IDs, as strings (e.g. `hcloudplus_project.x.id`).
 - `types` (List of String) Filter by activity type (e.g. 'server.create', 'token.create').
 
 ### Read-Only

@@ -34,7 +34,7 @@ resource "hcloudplus_project_invitation" "teammate" {
 ### Required
 
 - `email` (String) Email address of the invitee. Hetzner accepts any syntactically valid email; it does not validate deliverability.
-- `project_id` (Number) ID of the project to invite the user into.
+- `project_id` (String) ID of the project to invite the user into, as a string (e.g. `hcloudplus_project.x.id`).
 - `role` (String) Role to grant on acceptance. One of: admin, member, restricted.
 
 ### Optional

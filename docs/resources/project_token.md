@@ -37,7 +37,7 @@ provider "hcloud" {
 ### Required
 
 - `description` (String) Human-readable description of the token (shown in the Hetzner console).
-- `project_id` (Number) ID of the project this token belongs to.
+- `project_id` (String) ID of the project this token belongs to, as a string (e.g. `hcloudplus_project.x.id`).
 
 ### Optional
 
